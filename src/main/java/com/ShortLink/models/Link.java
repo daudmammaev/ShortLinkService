@@ -1,4 +1,4 @@
-package com.ShortLink.models;
+package com.shortlink.models;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

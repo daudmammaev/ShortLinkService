@@ -1,10 +1,10 @@
-package com.ShortLink.controllers;
+package com.shortlink.controllers;
 
 
-import com.ShortLink.dto.LinkDto;
-import com.ShortLink.mappers.LinkMapper;
-import com.ShortLink.models.Link;
-import com.ShortLink.services.ShortLinkServicesImpl;
+
+import com.shortlink.dto.LinkDto;
+import com.shortlink.mappers.LinkMapper;
+import com.shortlink.services.ShortLinkServicesImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

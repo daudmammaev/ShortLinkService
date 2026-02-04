@@ -1,7 +1,8 @@
-package com.ShortLink.repositories;
+package com.shortlink.repositories;
 
 
-import com.ShortLink.models.Link;
+
+import com.shortlink.models.Link;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

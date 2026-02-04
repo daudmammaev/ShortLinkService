@@ -1,10 +1,10 @@
-package com.ShortLink.LinkGenerator;
+package com.shortlink.LinkGenerator;
 
 import lombok.Getter;
 import lombok.Setter;
 
 import java.security.SecureRandom;
-import java.util.Random;
+
 
 @Getter
 @Setter

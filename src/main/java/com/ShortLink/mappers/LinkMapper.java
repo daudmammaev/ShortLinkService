@@ -1,7 +1,8 @@
-package com.ShortLink.mappers;
+package com.shortlink.mappers;
 
-import com.ShortLink.dto.LinkDto;
+
 import com.ShortLink.models.Link;
+import com.shortlink.dto.LinkDto;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -9,7 +10,7 @@ import java.util.List;
 @Component
 public class LinkMapper {
 
-    public Link toLink(LinkDto linkDto){
+    public com.shortlink.models.Link toLink(LinkDto linkDto){
         Link link = new Link();
         link.setShortUrl(linkDto.getShortUrl());
         link.setOriginalUrl(linkDto.getOriginalUrl());

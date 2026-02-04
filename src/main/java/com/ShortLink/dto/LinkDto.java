@@ -1,4 +1,4 @@
-package com.ShortLink.dto;
+package com.shortlink.dto;
 
 import lombok.Getter;
 import lombok.Setter;

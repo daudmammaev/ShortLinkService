@@ -1,7 +1,7 @@
-package com.ShortLink.services;
+package com.shortlink.services;
 
-import com.ShortLink.dto.LinkDto;
-import com.ShortLink.models.Link;
+
+import com.shortlink.models.Link;
 
 public interface ShortLinkServices {
     Link createShortLink(Link link);

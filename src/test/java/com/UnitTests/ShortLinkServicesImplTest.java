@@ -1,8 +1,9 @@
 package com.UnitTests;
 
-import com.ShortLink.models.Link;
-import com.ShortLink.repositories.ShortLinkRepo;
-import com.ShortLink.services.ShortLinkServicesImpl;
+
+import com.shortlink.models.Link;
+import com.shortlink.repositories.ShortLinkRepo;
+import com.shortlink.services.ShortLinkServicesImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
