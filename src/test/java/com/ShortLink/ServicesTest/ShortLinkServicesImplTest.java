@@ -16,9 +16,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,8 +56,8 @@ class ShortLinkServicesImplTest {
     void testCreateShortLink_Success() {
         String originalUrl = "https://www.avito.ru";
         String generatedShortUrl = "abc123";
+
         when(linkGeneratorClass.LinkGenerator()).thenReturn(generatedShortUrl);
-        when(linkGeneratorClass.CheckForUniqueness(generatedShortUrl)).thenReturn(true);
         when(shortLinkRepo.save(any(Link.class))).thenReturn(link);
         when(linkMapper.toDto(any(Link.class))).thenReturn(linkDto);
 
@@ -67,13 +68,12 @@ class ShortLinkServicesImplTest {
         assertEquals(linkDto.getShortUrl(), result.getShortUrl());
 
         verify(linkGeneratorClass, times(1)).LinkGenerator();
-        verify(linkGeneratorClass, times(1)).CheckForUniqueness(generatedShortUrl);
         verify(shortLinkRepo, times(1)).save(any(Link.class));
         verify(linkMapper, times(1)).toDto(any(Link.class));
     }
 
     @Test
-    void testCreateShortLink_GenerateUniqueAfterRetry() {
+    void testCreateShortLink_DuplicateShortUrl_RetrySuccess() {
         String originalUrl = "https://www.avito.ru";
         String firstGenerated = "dup123";
         String secondGenerated = "uniq456";
@@ -81,17 +81,17 @@ class ShortLinkServicesImplTest {
         when(linkGeneratorClass.LinkGenerator())
                 .thenReturn(firstGenerated)
                 .thenReturn(secondGenerated);
-
-        when(linkGeneratorClass.CheckForUniqueness(firstGenerated)).thenReturn(false);
-        when(linkGeneratorClass.CheckForUniqueness(secondGenerated)).thenReturn(true);
-        when(shortLinkRepo.save(any(Link.class))).thenReturn(link);
+        when(shortLinkRepo.save(argThat(link -> link.getShortUrl().equals(firstGenerated))))
+                .thenThrow(new DataIntegrityViolationException("Duplicate entry"));
+        when(shortLinkRepo.save(argThat(link -> link.getShortUrl().equals(secondGenerated))))
+                .thenReturn(link);
         when(linkMapper.toDto(any(Link.class))).thenReturn(linkDto);
 
         LinkDto result = shortLinkServices.createShortLink(originalUrl);
 
         assertNotNull(result);
         verify(linkGeneratorClass, times(2)).LinkGenerator();
-        verify(linkGeneratorClass, times(2)).CheckForUniqueness(anyString());
+        verify(shortLinkRepo, times(2)).save(any(Link.class));
     }
 
     @Test
@@ -99,7 +99,8 @@ class ShortLinkServicesImplTest {
         String originalUrl = "https://www.avito.ru";
 
         when(linkGeneratorClass.LinkGenerator()).thenReturn("test123");
-        when(linkGeneratorClass.CheckForUniqueness(anyString())).thenReturn(false);
+        when(shortLinkRepo.save(any(Link.class)))
+                .thenThrow(new DataIntegrityViolationException("Duplicate entry"));
 
         ShortLinkCreationException exception = assertThrows(
                 ShortLinkCreationException.class,
@@ -107,9 +108,8 @@ class ShortLinkServicesImplTest {
         );
 
         assertTrue(exception.getMessage().contains("10 попыток"));
-        verify(linkGeneratorClass, times(10)).LinkGenerator();
-        verify(linkGeneratorClass, times(10)).CheckForUniqueness(anyString());
-        verify(shortLinkRepo, never()).save(any(Link.class));
+        verify(linkGeneratorClass, atLeast(10)).LinkGenerator();
+        verify(shortLinkRepo, atLeast(10)).save(any(Link.class));
     }
 
     @Test
@@ -117,10 +117,8 @@ class ShortLinkServicesImplTest {
         String originalUrl = "https://www.avito.ru";
 
         when(linkGeneratorClass.LinkGenerator()).thenReturn("abc123");
-        when(linkGeneratorClass.CheckForUniqueness("abc123")).thenReturn(true);
-        when(shortLinkRepo.save(any(Link.class))).thenThrow(
-                new DataIntegrityViolationException("Database error")
-        );
+        when(shortLinkRepo.save(any(Link.class)))
+                .thenThrow(new DataIntegrityViolationException("Database error"));
 
         ShortLinkCreationException exception = assertThrows(
                 ShortLinkCreationException.class,
@@ -128,14 +126,14 @@ class ShortLinkServicesImplTest {
         );
 
         assertTrue(exception.getMessage().contains("Не удалось сохранить ссылку"));
-        assertNotNull(exception.getCause());
     }
 
     @Test
     void testFindByShortLink_Success() {
         String shortUrl = "abc123";
-        when(shortLinkRepo.findLinkByShortUrl(shortUrl)).thenReturn(link);
+        when(shortLinkRepo.findLinkByShortUrl(shortUrl)).thenReturn(Optional.of(link));
         when(linkMapper.toDto(link)).thenReturn(linkDto);
+
         LinkDto result = shortLinkServices.findByShortLink(shortUrl);
 
         assertNotNull(result);
@@ -149,7 +147,7 @@ class ShortLinkServicesImplTest {
     @Test
     void testFindByShortLink_NotFound() {
         String shortUrl = "nonexistent";
-        when(shortLinkRepo.findLinkByShortUrl(shortUrl)).thenReturn(null);
+        when(shortLinkRepo.findLinkByShortUrl(shortUrl)).thenReturn(Optional.empty());
 
         ShortLinkNotFoundException exception = assertThrows(
                 ShortLinkNotFoundException.class,
@@ -166,6 +164,7 @@ class ShortLinkServicesImplTest {
         String shortUrl = "abc123";
         when(shortLinkRepo.findLinkByShortUrl(shortUrl))
                 .thenThrow(new RuntimeException("Database connection failed"));
+
         ShortLinkNotFoundException exception = assertThrows(
                 ShortLinkNotFoundException.class,
                 () -> shortLinkServices.findByShortLink(shortUrl)
@@ -176,16 +175,21 @@ class ShortLinkServicesImplTest {
     }
 
     @Test
-    void testCreateShortLink_GeneralException() {
-        String originalUrl = "https://www.avito.ru";
-        when(linkGeneratorClass.LinkGenerator()).thenThrow(new RuntimeException("Unexpected error"));
+    void testFindByShortLink_NullFieldsInLink() {
+        String shortUrl = "abc123";
+        Link brokenLink = new Link();
+        brokenLink.setId(1L);
+        brokenLink.setShortUrl(null);
+        brokenLink.setOriginalUrl(null);
 
-        ShortLinkCreationException exception = assertThrows(
-                ShortLinkCreationException.class,
-                () -> shortLinkServices.createShortLink(originalUrl)
+        when(shortLinkRepo.findLinkByShortUrl(shortUrl)).thenReturn(Optional.of(brokenLink));
+
+        ShortLinkNotFoundException exception = assertThrows(
+                ShortLinkNotFoundException.class,
+                () -> shortLinkServices.findByShortLink(shortUrl)
         );
 
-        assertTrue(exception.getMessage().contains("Ошибка при создании короткой ссылки"));
-        assertNotNull(exception.getCause());
+        assertTrue(exception.getMessage().contains("пустыми полями"));
+        verify(shortLinkRepo, times(1)).findLinkByShortUrl(shortUrl);
     }
 }

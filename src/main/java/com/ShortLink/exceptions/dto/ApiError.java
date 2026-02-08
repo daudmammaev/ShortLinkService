@@ -5,17 +5,18 @@ import lombok.Setter;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Getter
 @Setter
 public class ApiError {
     private HttpStatus status;
     private String message;
-    private LocalDateTime timestamp;
+    private OffsetDateTime timestamp;
 
     public ApiError(HttpStatus status, String message) {
         this.status = status;
         this.message = message;
-        this.timestamp = LocalDateTime.now();
+        this.timestamp = OffsetDateTime.now();
     }
 }

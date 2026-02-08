@@ -26,8 +26,4 @@ public class LinkGeneratorClass {
         }
         return password.toString();
     }
-
-    public boolean CheckForUniqueness(String shortUrl) {
-        return shortLinkRepo.findLinkByShortUrl(shortUrl) == null;
-    }
 }

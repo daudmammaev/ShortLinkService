@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 
@@ -28,62 +29,50 @@ public class ShortLinkServicesImpl implements ShortLinkServices {
     @Autowired
     public LinkGeneratorClass linkGeneratorClass;
 
-    @Override
     public LinkDto createShortLink(String originalUrl) throws ShortLinkCreationException {
-        try {
-            Link newLink = new Link();
-            newLink.setOriginalUrl(originalUrl);
-            newLink.setShortUrl(linkGeneratorClass.LinkGenerator());
+        int maxAttempts = 10;
+        int attempts = 0;
 
-            int maxAttempts = 10;
-            int attempts = 0;
+        while (attempts < maxAttempts) {
+            try {
+                Link newLink = new Link();
+                newLink.setOriginalUrl(originalUrl);
+                newLink.setShortUrl(linkGeneratorClass.LinkGenerator());
 
-            while (attempts < maxAttempts) {
-                if (linkGeneratorClass.CheckForUniqueness(newLink.getShortUrl())) {
-                    try {
-                        Link savedLink = shortLinkRepo.save(newLink);
-                        logger.info("Создана ссылка: original={}, short={}",
-                                savedLink.getOriginalUrl(), savedLink.getShortUrl());
-                        return linkMapper.toDto(savedLink);
-                    } catch (DataAccessException e) {
-                        throw new ShortLinkCreationException(
-                                "Не удалось сохранить ссылку в базу данных", e);
-                    }
-                } else {
-                    newLink.setShortUrl(linkGeneratorClass.LinkGenerator());
-                    attempts++;
-                }
+                Link savedLink = shortLinkRepo.save(newLink);
+                logger.info("Создана ссылка: original={}, short={}",
+                        savedLink.getOriginalUrl(), savedLink.getShortUrl());
+                return linkMapper.toDto(savedLink);
+
+            } catch (DataIntegrityViolationException e) {
+                attempts++;
+                logger.debug("Попытка {}: ссылка уже существует, генерируем новую", attempts);
+
+            } catch (DataAccessException e) {
+                logger.debug("Не удалось сохранить ссылку в базу данных", e);
             }
-
-            throw new ShortLinkCreationException(
-                    "Не удалось сгенерировать уникальную короткую ссылку после " + maxAttempts + " попыток");
-
-        } catch (Exception e) {
-            if (e instanceof ShortLinkCreationException) {
-                throw e;
-            }
-            throw new ShortLinkCreationException("Ошибка при создании короткой ссылки", e);
         }
+        throw new ShortLinkCreationException(
+                "Не удалось сгенерировать уникальную короткую ссылку после " + maxAttempts + " попыток");
     }
 
     @Override
     public LinkDto findByShortLink(String shortLink) throws ShortLinkNotFoundException {
         try {
-            Link link = shortLinkRepo.findLinkByShortUrl(shortLink);
+            if (shortLinkRepo.findLinkByShortUrl(shortLink).isPresent()) {
+                Link link = shortLinkRepo.findLinkByShortUrl(shortLink).get();
 
-            logger.info("Поиск ссылки : {}", link.getOriginalUrl());
+                logger.info("Поиск ссылки : {}", link.getOriginalUrl());
 
-            if (link.getShortUrl() == null || link.getOriginalUrl() == null) {
-                throw new ShortLinkNotFoundException(
-                        "Короткая ссылка не найдена: " + shortLink);
+                if (link.getShortUrl() == null || link.getOriginalUrl() == null) {
+                    throw new ShortLinkNotFoundException(
+                            "Короткая ссылка не найдена: " + shortLink);
+                }
+                return linkMapper.toDto(link);
             }
-            return linkMapper.toDto(link);
-        } catch (ShortLinkNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new ShortLinkNotFoundException(
-                    "Ошибка при поиске короткой ссылки: " + shortLink, e);
+        } catch (NullPointerException e) {
+            logger.debug("Ошибка при поиске короткой ссылки: {}", shortLink, e);
         }
+        return null;
     }
-
 }
