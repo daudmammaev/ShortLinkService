@@ -73,23 +73,23 @@ class ShortLinkControllerTest {
     @Test
     void testRedirectToOriginalLink_Success() throws Exception {
         String shortLink = "abc123";
-        when(shortLinkServices.findByShortLink(shortLink)).thenReturn(linkDto);
+        when(shortLinkServices.getByShortLink(shortLink)).thenReturn(linkDto);
         mockMvc.perform(get("/api/{shortlink}", shortLink))
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", "https://www.avito.ru"));
 
-        verify(shortLinkServices, times(1)).findByShortLink(shortLink);
+        verify(shortLinkServices, times(1)).getByShortLink(shortLink);
     }
 
     @Test
     void testRedirectToOriginalLink_NotFound() throws Exception {
         String shortLink = "nonexistent";
-        when(shortLinkServices.findByShortLink(shortLink))
+        when(shortLinkServices.getByShortLink(shortLink))
                 .thenThrow(new ShortLinkNotFoundException("Link not found"));
         mockMvc.perform(get("/api/{shortlink}", shortLink))
                 .andExpect(status().isNotFound());
 
-        verify(shortLinkServices, times(1)).findByShortLink(shortLink);
+        verify(shortLinkServices, times(1)).getByShortLink(shortLink);
     }
 
     @Test
@@ -97,7 +97,7 @@ class ShortLinkControllerTest {
         mockMvc.perform(get("/api/{shortlink}", ""))
                 .andExpect(status().isNotFound());
 
-        verify(shortLinkServices, never()).findByShortLink(anyString());
+        verify(shortLinkServices, never()).getByShortLink(anyString());
     }
 
     @Test

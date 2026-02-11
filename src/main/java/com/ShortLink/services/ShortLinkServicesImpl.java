@@ -57,22 +57,15 @@ public class ShortLinkServicesImpl implements ShortLinkServices {
     }
 
     @Override
-    public LinkDto findByShortLink(String shortLink) throws ShortLinkNotFoundException {
-        try {
-            if (shortLinkRepo.findLinkByShortUrl(shortLink).isPresent()) {
-                Link link = shortLinkRepo.findLinkByShortUrl(shortLink).get();
-
-                logger.info("Поиск ссылки : {}", link.getOriginalUrl());
-
-                if (link.getShortUrl() == null || link.getOriginalUrl() == null) {
-                    throw new ShortLinkNotFoundException(
-                            "Короткая ссылка не найдена: " + shortLink);
-                }
-                return linkMapper.toDto(link);
-            }
-        } catch (NullPointerException e) {
-            logger.debug("Ошибка при поиске короткой ссылки: {}", shortLink, e);
+    public LinkDto getByShortLink(String shortLink) {
+        if (shortLink == null) {
+            throw new IllegalArgumentException("Короткая ссылка не должна быть пустой");
         }
-        return null;
+
+        Link link = shortLinkRepo.findLinkByShortUrl(shortLink)
+                .orElseThrow(() -> new ShortLinkNotFoundException(shortLink));
+
+        logger.debug("Найдена ссылка: {}", link.getOriginalUrl());
+        return linkMapper.toDto(link);
     }
 }

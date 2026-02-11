@@ -113,28 +113,25 @@ class ShortLinkServicesImplTest {
     }
 
     @Test
-    void testCreateShortLink_DatabaseError() {
-        String originalUrl = "https://www.avito.ru";
-
-        when(linkGeneratorClass.LinkGenerator()).thenReturn("abc123");
+    void createShortLink_ShouldFailAfterMaxAttempts_WhenAlwaysDuplicate() {
+        when(linkGeneratorClass.LinkGenerator()).thenReturn("dup123");
         when(shortLinkRepo.save(any(Link.class)))
-                .thenThrow(new DataIntegrityViolationException("Database error"));
+                .thenThrow(new DataIntegrityViolationException("Duplicate key"));
 
-        ShortLinkCreationException exception = assertThrows(
-                ShortLinkCreationException.class,
-                () -> shortLinkServices.createShortLink(originalUrl)
-        );
+        assertThrows(ShortLinkCreationException.class,
+                () -> shortLinkServices.createShortLink("https://avito.ru"));
 
-        assertTrue(exception.getMessage().contains("Не удалось сохранить ссылку"));
+        verify(linkGeneratorClass, times(10)).LinkGenerator();
+        verify(shortLinkRepo, times(10)).save(any(Link.class));
     }
 
     @Test
-    void testFindByShortLink_Success() {
+    void testGetByShortLink_Success() {
         String shortUrl = "abc123";
         when(shortLinkRepo.findLinkByShortUrl(shortUrl)).thenReturn(Optional.of(link));
         when(linkMapper.toDto(link)).thenReturn(linkDto);
 
-        LinkDto result = shortLinkServices.findByShortLink(shortUrl);
+        LinkDto result = shortLinkServices.getByShortLink(shortUrl);
 
         assertNotNull(result);
         assertEquals(linkDto.getOriginalUrl(), result.getOriginalUrl());
@@ -145,13 +142,13 @@ class ShortLinkServicesImplTest {
     }
 
     @Test
-    void testFindByShortLink_NotFound() {
+    void testGetByShortLink_NotFound() {
         String shortUrl = "nonexistent";
         when(shortLinkRepo.findLinkByShortUrl(shortUrl)).thenReturn(Optional.empty());
 
         ShortLinkNotFoundException exception = assertThrows(
                 ShortLinkNotFoundException.class,
-                () -> shortLinkServices.findByShortLink(shortUrl)
+                () -> shortLinkServices.getByShortLink(shortUrl)
         );
 
         assertTrue(exception.getMessage().contains("не найдена"));
@@ -160,14 +157,14 @@ class ShortLinkServicesImplTest {
     }
 
     @Test
-    void testFindByShortLink_RepositoryException() {
+    void testGetByShortLink_RepositoryException() {
         String shortUrl = "abc123";
         when(shortLinkRepo.findLinkByShortUrl(shortUrl))
                 .thenThrow(new RuntimeException("Database connection failed"));
 
         ShortLinkNotFoundException exception = assertThrows(
                 ShortLinkNotFoundException.class,
-                () -> shortLinkServices.findByShortLink(shortUrl)
+                () -> shortLinkServices.getByShortLink(shortUrl)
         );
 
         assertTrue(exception.getMessage().contains("Ошибка при поиске"));
@@ -175,7 +172,7 @@ class ShortLinkServicesImplTest {
     }
 
     @Test
-    void testFindByShortLink_NullFieldsInLink() {
+    void testGetByShortLink_NullFieldsInLink() {
         String shortUrl = "abc123";
         Link brokenLink = new Link();
         brokenLink.setId(1L);
@@ -186,7 +183,7 @@ class ShortLinkServicesImplTest {
 
         ShortLinkNotFoundException exception = assertThrows(
                 ShortLinkNotFoundException.class,
-                () -> shortLinkServices.findByShortLink(shortUrl)
+                () -> shortLinkServices.getByShortLink(shortUrl)
         );
 
         assertTrue(exception.getMessage().contains("пустыми полями"));

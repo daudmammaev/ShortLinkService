@@ -30,7 +30,7 @@ public class ShortLinkController {
     @GetMapping("/{shortlink}")
     public RedirectView redirectToOriginalLink(@PathVariable String shortlink) {
         RedirectView redirectView = new RedirectView();
-        redirectView.setUrl(shortLinkServices.findByShortLink(shortlink).getOriginalUrl());
+        redirectView.setUrl(shortLinkServices.getByShortLink(shortlink).getOriginalUrl());
         return redirectView;
     }
 }
