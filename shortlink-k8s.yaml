@@ -9,24 +9,12 @@ stringData:
   POSTGRES_PASSWORD: POSTGRES_PASSWORD
   POSTGRES_DB: postgres
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: postgres
-  labels:
-    app: postgres
 spec:
+  serviceName: postgres         
   replicas: 1
   selector:
     matchLabels:
@@ -41,6 +29,7 @@ spec:
         image: postgres:15-alpine
         ports:
         - containerPort: 5432
+          name: postgres
         env:
         - name: POSTGRES_USER
           valueFrom:
@@ -58,7 +47,7 @@ spec:
               name: postgres-secret
               key: POSTGRES_DB
         volumeMounts:
-        - name: postgres-storage
+        - name: postgres-data
           mountPath: /var/lib/postgresql/data
           subPath: postgres
         resources:
@@ -84,10 +73,14 @@ spec:
             - postgres
           initialDelaySeconds: 5
           periodSeconds: 5
-      volumes:
-      - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: postgres-pvc
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
